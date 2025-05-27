@@ -14,3 +14,17 @@ validate_name(){
     fi
     return 0
 }
+
+# validate datatype in the table
+validate_datatype(){
+    local type="$1"
+    case "$type" in 
+    "INT" | "STRING" | "FLOAT" | "DATE")
+        return 0
+        ;;
+    *)
+        echo "Invalid datatype: $type. Supported: INT, STRING, FLOAT, DATE"
+        return 1
+        ;;
+    esac
+}
