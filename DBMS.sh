@@ -51,3 +51,18 @@ validate_data(){
     esac
     return 0
 }
+
+# Create Database
+create_database(){
+    read -p "Enter database name: " db_name
+    if ! validate_name "$db_name"; then
+        return 1
+    fi
+    if [ -d "$DB_DIR/$db_name" ]; then
+        echo "Database '$db_name' already exists."
+        return 1
+    fi
+    mkdir -p "$DB_DIR/$db_name"
+    echo "Database '$db_name' created successfully."
+    return 0
+}
