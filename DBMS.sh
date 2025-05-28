@@ -66,3 +66,11 @@ create_database(){
     echo "Database '$db_name' created successfully."
     return 0
 }
+
+# List Databases
+list_databases() {
+    echo "Available Databases:"
+    ls -1 "$DB_DIR" | while read -r db; do
+        echo "- $db"
+    done
+}
