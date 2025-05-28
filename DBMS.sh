@@ -74,3 +74,21 @@ list_databases() {
         echo "- $db"
     done
 }
+
+# Drop Database
+drop_database(){
+    read -p "Enter database name to drop: " db_name
+    if [ ! -d "$DB_DIR/$db_name" ]; then
+    echo "Database '$db_name' does not exist."
+        return 1
+    fi
+    read -p "Are you sure you want to drop the database '$db_name'? (y/n): " confirm
+    if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
+        rm -rf "$DB_DIR/$db_name"
+        echo "Database '$db_name' dropped successfully."
+        return 0
+    else
+        echo "Database drop cancelled."
+        return 1
+    fi
+}
