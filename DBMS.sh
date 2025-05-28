@@ -138,3 +138,12 @@ create_table() {
     echo "$pk" >>"$DB_DIR/$db_name/$table_name.tbl"
     echo "Table '$table_name' created successfully."
 }
+
+# List Tables
+list_tables() {
+    local db_name="$1"
+    echo "Tables in database '$db_name':"
+    ls -1 "$DB_DIR/$db_name" | grep ".tbl$" | sed 's/.tbl$//' | while read -r table; do
+        echo "- $table"
+    done
+}
