@@ -147,3 +147,22 @@ list_tables() {
         echo "- $table"
     done
 }
+
+
+# Drop Table
+drop_table() {
+    local db_name="$1"
+    read -p "Enter table name to drop: " table_name
+    if [ ! -f "$DB_DIR/$db_name/$table_name.tbl" ]; then
+        echo "Table '$table_name' does not exist."
+        return 1
+    fi
+    read -p "Are you sure you want to drop '$table_name'? (y/n): " confirm
+    if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
+        rm -f "$DB_DIR/$db_name/$table_name.tbl"
+        rm -f "$DB_DIR/$db_name/$table_name.data"
+        echo "Table '$table_name' dropped successfully."
+    else
+        echo "Operation cancelled."
+    fi
+}
