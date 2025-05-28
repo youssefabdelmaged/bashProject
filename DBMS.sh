@@ -28,3 +28,26 @@ validate_datatype(){
         ;;
     esac
 }
+
+
+# Function to validate data against datatype
+validate_data(){
+    local type="$1"
+    local data="$2"
+    case "$type" in
+    "INT") [[ "$data" =~ ^-?[0-9]+$ ]] || {
+        echo "Invalid INT value"
+        return 1
+    } ;;
+    "FLOAT") [[ "$data" =~ ^-?[0-9]*\.?[0-9]+$ ]] || {
+        echo "Invalid FLOAT value"
+        return 1
+    } ;;
+    "DATE") [[ "$data" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || {
+        echo "Invalid DATE format (YYYY-MM-DD)"
+        return 1
+    } ;;
+    "STRING") return 0 ;;
+    esac
+    return 0
+}
