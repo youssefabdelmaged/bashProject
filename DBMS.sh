@@ -367,3 +367,63 @@ update_table() {
         echo "Record with primary key '$pk_value' not found."
     fi
 }
+
+# SQL Parser (Basic)
+parse_sql() {
+    local db_name="$1"
+    local sql="$2"
+
+    # Enable case-insensitive matching
+    shopt -s nocasematch
+
+    if [[ "$sql" =~ ^CREATE[[:space:]]+TABLE[[:space:]]+([a-zA-Z][a-zA-Z0-9_]*)[[:space:]]*\((.*)\)[[:space:]]*(;)?$ ]]; then
+        table_name="${BASH_REMATCH[1]}"
+        columns_def="${BASH_REMATCH[2]}"
+        if [ -f "$DB_DIR/$db_name/$table_name.tbl" ]; then
+            echo "Table '$table_name' already exists."
+            shopt -u nocasematch
+            return 1
+        fi
+
+        columns=()
+        datatypes=()
+        pk=""
+        IFS=',' read -ra col_defs <<<"$columns_def"
+        for col_def in "${col_defs[@]}"; do
+            col_def=$(echo "$col_def" | tr -s ' ' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            if [[ "$col_def" =~ PRIMARY[[:space:]]+KEY ]]; then
+                pk=$(echo "$col_def" | cut -d' ' -f1)
+                continue
+            fi
+            read -r col_name col_type <<<"$col_def"
+            if ! validate_identifier "$col_name" || ! validate_datatype "$col_type"; then
+                shopt -u nocasematch
+                return 1
+            fi
+            columns+=("$col_name")
+            datatypes+=("${col_type^^}")
+        done
+
+        if [[ -z "$pk" || ! " ${columns[*]} " =~ " $pk " ]]; then
+            echo "Valid primary key must be specified."
+            shopt -u nocasematch
+            return 1
+        fi
+
+        echo "${columns[*]}" >"$DB_DIR/$db_name/$table_name.tbl"
+        echo "${datatypes[*]}" >>"$DB_DIR/$db_name/$table_name.tbl"
+        echo "$pk" >>"$DB_DIR/$db_name/$table_name.tbl"
+        echo "Table '$table_name' created successfully."
+        shopt -u nocasematch
+        return 0
+    elif [[ "$sql" =~ ^SELECT[[:space:]]+\*[[:space:]]+FROM[[:space:]]+([a-zA-Z][a-zA-Z0-9_]*)[[:space:]]*(;)?$ ]]; then
+        table_name="${BASH_REMATCH[1]}"
+        select_from_table "$db_name" <<<"$table_name"
+        shopt -u nocasematch
+        return 0
+    else
+        echo "Unsupported SQL command."
+        shopt -u nocasematch
+        return 1
+    fi
+}
