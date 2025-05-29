@@ -258,3 +258,50 @@ select_from_table() {
         done <"$DB_DIR/$db_name/$table_name.data"
     fi
 }
+
+# Delete From Table
+delete_from_table() {
+    local db_name="$1"
+    read -p "Enter table name: " table_name
+    if [ ! -f "$DB_DIR/$db_name/$table_name.tbl" ]; then
+        echo "Table '$table_name' does not exist."
+        return 1
+    fi
+
+    read -r col_line <"$DB_DIR/$db_name/$table_name.tbl"
+    read -r pk < <(sed -n '3p' "$DB_DIR/$db_name/$table_name.tbl")
+    columns=($col_line)
+    pk_index=-1
+    for i in "${!columns[@]}"; do
+        if [[ "${columns[$i]}" == "$pk" ]]; then
+            pk_index=$i
+            break
+        fi
+    done
+
+    read -p "Enter primary key value to delete: " pk_value
+    if [ ! -f "$DB_DIR/$db_name/$table_name.data" ]; then
+        echo "No data to delete."
+        return 1
+    fi
+
+    # Create temporary file for new data
+    temp_file=$(mktemp)
+    found=false
+    while IFS='|' read -r line; do
+        values=($line)
+        if [[ "${values[$pk_index]}" != "$pk_value" ]]; then
+            echo "$line" >>"$temp_file"
+        else
+            found=true
+        fi
+    done <"$DB_DIR/$db_name/$table_name.data"
+
+    if $found; then
+        mv "$temp_file" "$DB_DIR/$db_name/$table_name.data"
+        echo "Record deleted successfully."
+    else
+        rm "$temp_file"
+        echo "Record with primary key '$pk_value' not found."
+    fi
+}
