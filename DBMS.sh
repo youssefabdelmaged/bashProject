@@ -166,3 +166,57 @@ drop_table() {
         echo "Operation cancelled."
     fi
 }
+
+# Insert into Table
+insert_into_table() {
+    local db_name="$1"
+    read -p "Enter table name: " table_name
+    if [ ! -f "$DB_DIR/$db_name/$table_name.tbl" ]; then
+        echo "Table '$table_name' does not exist."
+        return 1
+    fi
+
+    # Read schema
+    read -r col_line <"$DB_DIR/$db_name/$table_name.tbl"
+    read -r type_line < <(sed -n '2p' "$DB_DIR/$db_name/$table_name.tbl")
+    read -r pk < <(sed -n '3p' "$DB_DIR/$db_name/$table_name.tbl")
+    columns=($col_line)
+    datatypes=($type_line)
+
+    # Check if primary key value already exists
+    read -p "Enter value for primary key ($pk): " pk_value
+    pk_index=-1
+    for i in "${!columns[@]}"; do
+        if [[ "${columns[$i]}" == "$pk" ]]; then
+            pk_index=$i
+            break
+        fi
+    done
+    if [ -f "$DB_DIR/$db_name/$table_name.data" ]; then
+        while IFS='|' read -r line; do
+            values=($line)
+            if [[ "${values[$pk_index]}" == "$pk_value" ]]; then
+                echo "Primary key '$pk_value' already exists."
+                return 1
+            fi
+        done <"$DB_DIR/$db_name/$table_name.data"
+    fi
+
+    # Get values
+    values=()
+    for i in "${!columns[@]}"; do
+        if [[ "${columns[$i]}" == "$pk" ]]; then
+            values+=("$pk_value")
+        else
+            read -p "Enter value for ${columns[$i]} (${datatypes[$i]}): " value
+            if ! validate_data "$value" "${datatypes[$i]}"; then
+                return 1
+            fi
+            values+=("$value")
+        fi
+    done
+
+    # Save data
+    echo "${values[*]}" | tr ' ' '|' >>"$DB_DIR/$db_name/$table_name.data"
+    echo "Record inserted successfully."
+}
