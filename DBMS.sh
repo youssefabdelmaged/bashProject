@@ -181,7 +181,7 @@ insert_into_table() {
     read -r type_line < <(sed -n '2p' "$DB_DIR/$db_name/$table_name.tbl")
     read -r pk < <(sed -n '3p' "$DB_DIR/$db_name/$table_name.tbl")
     columns=($col_line)
-    datatypes=($type_line)
+    data_types=($type_line)
 
     # Check if primary key value already exists
     read -p "Enter value for primary key ($pk): " pk_value
@@ -219,4 +219,42 @@ insert_into_table() {
     # Save data
     echo "${values[*]}" | tr ' ' '|' >>"$DB_DIR/$db_name/$table_name.data"
     echo "Record inserted successfully."
+}
+
+# Select From Table
+select_from_table() {
+    local db_name="$1"
+    read -p "Enter table name: " table_name
+    if [ ! -f "$DB_DIR/$db_name/$table_name.tbl" ]; then
+        echo "Table '$table_name' does not exist."
+        return 1
+    fi
+
+    # Read schema
+    read -r col_line <"$DB_DIR/$db_name/$table_name.tbl"
+    columns=($col_line)
+
+    # Display header
+    printf "|"
+    for col in "${columns[@]}"; do
+        printf " %-15s |" "$col"
+    done
+    echo ""
+    printf "|"
+    for _ in "${columns[@]}"; do
+        printf "%s" "-----------------"
+        printf "|"
+    done
+    echo ""
+
+    # Display data
+    if [ -f "$DB_DIR/$db_name/$table_name.data" ]; then
+        while IFS='|' read -r -a values; do
+            printf "|"
+            for value in "${values[@]}"; do
+                printf " %-15s |" "$value"
+            done
+            echo ""
+        done <"$DB_DIR/$db_name/$table_name.data"
+    fi
 }
