@@ -305,3 +305,65 @@ delete_from_table() {
         echo "Record with primary key '$pk_value' not found."
     fi
 }
+
+# Update Table
+update_table() {
+    local db_name="$1"
+    read -p "Enter table name: " table_name
+    if [ ! -f "$DB_DIR/$db_name/$table_name.tbl" ]; then
+        echo "Table '$table_name' does not exist."
+        return 1
+    fi
+
+    read -r col_line <"$DB_DIR/$db_name/$table_name.tbl"
+    read -r type_line < <(sed -n '2p' "$DB_DIR/$db_name/$table_name.tbl")
+    read -r pk < <(sed -n '3p' "$DB_DIR/$db_name/$table_name.tbl")
+    columns=($col_line)
+    datatypes=($type_line)
+
+    pk_index=-1
+    for i in "${!columns[@]}"; do
+        if [[ "${columns[$i]}" == "$pk" ]]; then
+            pk_index=$i
+            break
+        fi
+    done
+
+    read -p "Enter primary key value to update: " pk_value
+    if [ ! -f "$DB_DIR/$db_name/$table_name.data" ]; then
+        echo "No data to update."
+        return 1
+    fi
+
+    # Create temporary file
+    temp_file=$(mktemp)
+    found=false
+    while IFS='|' read -r line; do
+        values=($line)
+        if [[ "${values[$pk_index]}" == "$pk_value" ]]; then
+            found=true
+            new_values=("${values[@]}")
+            for i in "${!columns[@]}"; do
+                if [[ "${columns[$i]}" != "$pk" ]]; then
+                    read -p "Enter new value for ${columns[$i]} (${datatypes[$i]}): " new_value
+                    if ! validate_data "$new_value" "${datatypes[$i]}"; then
+                        rm "$temp_file"
+                        return 1
+                    fi
+                    new_values[$i]="$new_value"
+                fi
+            done
+            echo "${new_values[*]}" | tr ' ' '|' >>"$temp_file"
+        else
+            echo "$line" >>"$temp_file"
+        fi
+    done <"$DB_DIR/$db_name/$table_name.data"
+
+    if $found; then
+        mv "$temp_file" "$DB_DIR/$db_name/$table_name.data"
+        echo "Record updated successfully."
+    else
+        rm "$temp_file"
+        echo "Record with primary key '$pk_value' not found."
+    fi
+}
