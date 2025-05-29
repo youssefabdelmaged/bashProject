@@ -427,3 +427,42 @@ parse_sql() {
         return 1
     fi
 }
+
+# Connect to Database
+connect_to_database() {
+    read -p "Enter database name: " db_name
+    if [ ! -d "$DB_DIR/$db_name" ]; then
+        echo "Database '$db_name' does not exist."
+        return 1
+    fi
+
+    while true; do
+        echo -e "\nDatabase: $db_name"
+        echo "1. Create Table"
+        echo "2. List Tables"
+        echo "3. Drop Table"
+        echo "4. Insert into Table"
+        echo "5. Select From Table"
+        echo "6. Delete From Table"
+        echo "7. Update Table"
+        echo "8. Execute SQL"
+        echo "9. Back to Main Menu"
+        read -p "Select an option: " option
+
+        case $option in
+        1) create_table "$db_name" ;;
+        2) list_tables "$db_name" ;;
+        3) drop_table "$db_name" ;;
+        4) insert_into_table "$db_name" ;;
+        5) select_from_table "$db_name" ;;
+        6) delete_from_table "$db_name" ;;
+        7) update_table "$db_name" ;;
+        8)
+            read -p "Enter SQL query: " sql_query
+            parse_sql "$db_name" "$sql_query"
+            ;;
+        9) break ;;
+        *) echo "Invalid option." ;;
+        esac
+    done
+}
