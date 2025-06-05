@@ -1,11 +1,6 @@
-#! /bin/bash
+#!/bin/bash
 
-# directory for storing the databases
-DB_DIR="databases"
-
-mkdir -p "$DB_DIR"
-
-#validate the database name and the table name
+# Validate the database name and the table name
 validate_name() {
     local name="$1"
     if [[ ! "$name" =~ ^[a-zA-Z][a-zA-Z0-9_]*$ ]]; then
@@ -15,7 +10,7 @@ validate_name() {
     return 0
 }
 
-# validate datatype in the table
+# Validate datatype in the table
 validate_datatype() {
     local type="$1"
     case "$type" in
@@ -51,441 +46,231 @@ validate_data() {
     return 0
 }
 
-# Create Database
-create_database() {
-    read -p "Enter database name: " db_name
-    if ! validate_name "$db_name"; then
-        return 1
-    fi
-    if [ -d "$DB_DIR/$db_name" ]; then
-        echo "Database '$db_name' already exists."
-        return 1
-    fi
-    mkdir -p "$DB_DIR/$db_name"
-    echo "Database '$db_name' created successfully."
-    return 0
-}
+# DBMS root directory
+DB_DIR="./databases"
 
-# List Databases
-list_databases() {
-    echo "Available Databases:"
-    ls -1 "$DB_DIR" | while read -r db; do
-        echo "- $db"
-    done
-}
+# Create DBMS directory if not exists
+mkdir -p "$DB_DIR"
 
-# Drop Database
-drop_database() {
-    read -p "Enter database name to drop: " db_name
-    if [ ! -d "$DB_DIR/$db_name" ]; then
-        echo "Database '$db_name' does not exist."
-        return 1
-    fi
-    read -p "Are you sure you want to drop the database '$db_name'? (y/n): " confirm
-    if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
-        rm -rf "$DB_DIR/$db_name"
-        echo "Database '$db_name' dropped successfully."
-        return 0
+# Function to create a database
+create_db() {
+    read -p "Enter database name: " dbname
+    if [[ -d "$DB_DIR/$dbname" ]]; then
+        echo "Database '$dbname' already exists."
     else
-        echo "Database drop cancelled."
-        return 1
+        mkdir "$DB_DIR/$dbname"
+        echo "Database '$dbname' created successfully."
     fi
 }
 
-# Create Table
+# Function to list all databases
+list_dbs() {
+    echo "Databases:"
+    ls "$DB_DIR"
+}
+
+# Function to connect to a database
+connect_db() {
+    read -p "Enter database name: " dbname
+    if [[ -d "$DB_DIR/$dbname" ]]; then
+        echo "Connected to database '$dbname'"
+        db_menu "$dbname"
+    else
+        echo "Database '$dbname' does not exist."
+    fi
+}
+
+# Function to drop a database
+drop_db() {
+    read -p "Enter database name to drop: " dbname
+    if [[ -d "$DB_DIR/$dbname" ]]; then
+        rm -r "$DB_DIR/$dbname"
+        echo "Database '$dbname' dropped successfully."
+    else
+        echo "Database '$dbname' does not exist."
+    fi
+}
+
+# Function to create a table
 create_table() {
-    local db_name="$1"
-    read -p "Enter table name: " table_name
-    if ! validate_name "$table_name"; then
-        return 1
-    fi
-    if [ -f "$DB_DIR/$db_name/$table_name.tbl" ]; then
-        echo "Table '$table_name' already exists."
-        return 1
+    read -p "Enter table name: " tablename
+    if [[ -f "$1/$tablename" ]]; then
+        echo "Table '$tablename' already exists."
+        return
     fi
 
-    read -p "Enter number of columns: " num_cols
-    if ! [[ "$num_cols" =~ ^[1-9][0-9]*$ ]]; then
-        echo "Invalid number of columns."
-        return 1
-    fi
-
+    read -p "Enter number of columns: " colnum
     columns=()
-    data_types=()
-    primary_key=""
-    for ((i = 1; i <= num_cols; i++)); do
-        read -p "Enter name for column $i: " col_name
-        if ! validate_name "$col_name"; then
-            return 1
-        fi
-        read -p "Enter datatype for column $i (INT, STRING, FLOAT, DATE): " col_type
-        if ! validate_datatype "$col_type"; then
-            return 1
-        fi
-        columns+=("$col_name")
-        data_types+=("$col_type")
+
+    for ((i = 1; i <= colnum; i++)); do
+        read -p "Enter name of column $i: " colname
+        read -p "Enter data type of column $i (int/str): " coltype
+        columns+=("$colname:$coltype")
     done
 
-    read -p "Enter primary key column name: " pk
-    if [[ ! " ${columns[*]} " =~ " $pk " ]]; then
-        echo "Primary key must be one of the column names."
-        return 1
-    fi
-
-    # Save table schema
-    echo "${columns[*]}" >"$DB_DIR/$db_name/$table_name.tbl"
-    echo "${data_types[*]}" >>"$DB_DIR/$db_name/$table_name.tbl"
-    echo "$pk" >>"$DB_DIR/$db_name/$table_name.tbl"
-    echo "Table '$table_name' created successfully."
+    IFS=','
+    echo "${columns[*]}" >"$1/$tablename"
+    echo "Table '$tablename' created successfully."
 }
 
-# List Tables
+# Function to list all tables
 list_tables() {
-    local db_name="$1"
-    echo "Tables in database '$db_name':"
-    ls -1 "$DB_DIR/$db_name" | grep ".tbl$" | sed 's/.tbl$//' | while read -r table; do
-        echo "- $table"
-    done
+    echo "Tables in database:"
+    ls "$1"
 }
 
-
-# Drop Table
+# Function to drop a table
 drop_table() {
-    local db_name="$1"
-    read -p "Enter table name to drop: " table_name
-    if [ ! -f "$DB_DIR/$db_name/$table_name.tbl" ]; then
-        echo "Table '$table_name' does not exist."
-        return 1
-    fi
-    read -p "Are you sure you want to drop '$table_name'? (y/n): " confirm
-    if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
-        rm -f "$DB_DIR/$db_name/$table_name.tbl"
-        rm -f "$DB_DIR/$db_name/$table_name.data"
-        echo "Table '$table_name' dropped successfully."
+    read -p "Enter table name to drop: " tablename
+    if [[ -f "$1/$tablename" ]]; then
+        rm "$1/$tablename"
+        echo "Table '$tablename' dropped successfully."
     else
-        echo "Operation cancelled."
+        echo "Table '$tablename' does not exist."
     fi
 }
 
-# Insert into Table
+# Function to insert into a table
 insert_into_table() {
-    local db_name="$1"
-    read -p "Enter table name: " table_name
-    if [ ! -f "$DB_DIR/$db_name/$table_name.tbl" ]; then
-        echo "Table '$table_name' does not exist."
-        return 1
+    read -p "Enter table name: " tablename
+    if [[ ! -f "$1/$tablename" ]]; then
+        echo "Table '$tablename' does not exist."
+        return
     fi
 
-    # Read schema
-    read -r col_line <"$DB_DIR/$db_name/$table_name.tbl"
-    read -r type_line < <(sed -n '2p' "$DB_DIR/$db_name/$table_name.tbl")
-    read -r pk < <(sed -n '3p' "$DB_DIR/$db_name/$table_name.tbl")
-    columns=($col_line)
-    data_types=($type_line)
-
-    # Check if primary key value already exists
-    read -p "Enter value for primary key ($pk): " pk_value
-    pk_index=-1
-    for i in "${!columns[@]}"; do
-        if [[ "${columns[$i]}" == "$pk" ]]; then
-            pk_index=$i
-            break
-        fi
-    done
-    if [ -f "$DB_DIR/$db_name/$table_name.data" ]; then
-        while IFS='|' read -r line; do
-            values=($line)
-            if [[ "${values[$pk_index]}" == "$pk_value" ]]; then
-                echo "Primary key '$pk_value' already exists."
-                return 1
-            fi
-        done <"$DB_DIR/$db_name/$table_name.data"
-    fi
-
-    # Get values
+    IFS=',' read -ra columns <"$1/$tablename"
     values=()
-    for i in "${!columns[@]}"; do
-        if [[ "${columns[$i]}" == "$pk" ]]; then
-            values+=("$pk_value")
-        else
-            read -p "Enter value for ${columns[$i]} (${datatypes[$i]}): " value
-            if ! validate_data "$value" "${datatypes[$i]}"; then
-                return 1
-            fi
-            values+=("$value")
-        fi
-    done
 
-    # Save data
-    echo "${values[*]}" | tr ' ' '|' >>"$DB_DIR/$db_name/$table_name.data"
-    echo "Record inserted successfully."
-}
-
-# Select From Table
-select_from_table() {
-    local db_name="$1"
-    read -p "Enter table name: " table_name
-    if [ ! -f "$DB_DIR/$db_name/$table_name.tbl" ]; then
-        echo "Table '$table_name' does not exist."
-        return 1
-    fi
-
-    # Read schema
-    read -r col_line <"$DB_DIR/$db_name/$table_name.tbl"
-    columns=($col_line)
-
-    # Display header
-    printf "|"
     for col in "${columns[@]}"; do
-        printf " %-15s |" "$col"
+        IFS=':' read -ra meta <<<"$col"
+        colname=${meta[0]}
+        coltype=${meta[1]}
+        read -p "Enter value for $colname ($coltype): " value
+        values+=("$value")
     done
-    echo ""
-    printf "|"
-    for _ in "${columns[@]}"; do
-        printf "%s" "-----------------"
-        printf "|"
-    done
-    echo ""
 
-    # Display data
-    if [ -f "$DB_DIR/$db_name/$table_name.data" ]; then
-        while IFS='|' read -r -a values; do
-            printf "|"
-            for value in "${values[@]}"; do
-                printf " %-15s |" "$value"
-            done
-            echo ""
-        done <"$DB_DIR/$db_name/$table_name.data"
-    fi
+    IFS=','
+    echo "${values[*]}" >>"$1/$tablename"
+    echo "Row inserted successfully."
 }
 
-# Delete From Table
+# Function to select from a table
+select_from_table() {
+    read -p "Enter table name: " tablename
+    if [[ ! -f "$1/$tablename" ]]; then
+        echo "Table '$tablename' does not exist."
+        return
+    fi
+
+    echo "Contents of table '$tablename':"
+    nl "$1/$tablename"
+}
+
+# Function to delete from a table
 delete_from_table() {
-    local db_name="$1"
-    read -p "Enter table name: " table_name
-    if [ ! -f "$DB_DIR/$db_name/$table_name.tbl" ]; then
-        echo "Table '$table_name' does not exist."
-        return 1
+    read -p "Enter table name: " tablename
+    if [[ ! -f "$1/$tablename" ]]; then
+        echo "Table '$tablename' does not exist."
+        return
     fi
 
-    read -r col_line <"$DB_DIR/$db_name/$table_name.tbl"
-    read -r pk < <(sed -n '3p' "$DB_DIR/$db_name/$table_name.tbl")
-    columns=($col_line)
-    pk_index=-1
-    for i in "${!columns[@]}"; do
-        if [[ "${columns[$i]}" == "$pk" ]]; then
-            pk_index=$i
-            break
-        fi
-    done
+    echo "Contents of table '$tablename':"
+    nl "$1/$tablename"
 
-    read -p "Enter primary key value to delete: " pk_value
-    if [ ! -f "$DB_DIR/$db_name/$table_name.data" ]; then
-        echo "No data to delete."
-        return 1
+    read -p "Enter line number to delete: " lineno
+    if [[ $lineno -le 1 ]]; then
+        echo "Cannot delete table header."
+        return
     fi
 
-    # Create temporary file for new data
-    temp_file=$(mktemp)
-    found=false
-    while IFS='|' read -r line; do
-        values=($line)
-        if [[ "${values[$pk_index]}" != "$pk_value" ]]; then
-            echo "$line" >>"$temp_file"
-        else
-            found=true
-        fi
-    done <"$DB_DIR/$db_name/$table_name.data"
-
-    if $found; then
-        mv "$temp_file" "$DB_DIR/$db_name/$table_name.data"
-        echo "Record deleted successfully."
-    else
-        rm "$temp_file"
-        echo "Record with primary key '$pk_value' not found."
-    fi
+    sed -i "${lineno}d" "$1/$tablename"
+    echo "Row deleted."
 }
 
-# Update Table
+# Function to update a table
 update_table() {
-    local db_name="$1"
-    read -p "Enter table name: " table_name
-    if [ ! -f "$DB_DIR/$db_name/$table_name.tbl" ]; then
-        echo "Table '$table_name' does not exist."
-        return 1
+    read -p "Enter table name: " tablename
+    if [[ ! -f "$1/$tablename" ]]; then
+        echo "Table '$tablename' does not exist."
+        return
     fi
 
-    read -r col_line <"$DB_DIR/$db_name/$table_name.tbl"
-    read -r type_line < <(sed -n '2p' "$DB_DIR/$db_name/$table_name.tbl")
-    read -r pk < <(sed -n '3p' "$DB_DIR/$db_name/$table_name.tbl")
-    columns=($col_line)
-    datatypes=($type_line)
+    echo "Contents of table '$tablename':"
+    nl "$1/$tablename"
 
-    pk_index=-1
-    for i in "${!columns[@]}"; do
-        if [[ "${columns[$i]}" == "$pk" ]]; then
-            pk_index=$i
-            break
-        fi
+    read -p "Enter line number to update: " lineno
+    if [[ $lineno -le 1 ]]; then
+        echo "Cannot update table header."
+        return
+    fi
+
+    IFS=',' read -ra columns <"$1/$tablename"
+    new_values=()
+
+    for col in "${columns[@]}"; do
+        IFS=':' read -ra meta <<<"$col"
+        colname=${meta[0]}
+        coltype=${meta[1]}
+        read -p "Enter new value for $colname ($coltype): " value
+        new_values+=("$value")
     done
 
-    read -p "Enter primary key value to update: " pk_value
-    if [ ! -f "$DB_DIR/$db_name/$table_name.data" ]; then
-        echo "No data to update."
-        return 1
-    fi
-
-    # Create temporary file
-    temp_file=$(mktemp)
-    found=false
-    while IFS='|' read -r line; do
-        values=($line)
-        if [[ "${values[$pk_index]}" == "$pk_value" ]]; then
-            found=true
-            new_values=("${values[@]}")
-            for i in "${!columns[@]}"; do
-                if [[ "${columns[$i]}" != "$pk" ]]; then
-                    read -p "Enter new value for ${columns[$i]} (${datatypes[$i]}): " new_value
-                    if ! validate_data "$new_value" "${datatypes[$i]}"; then
-                        rm "$temp_file"
-                        return 1
-                    fi
-                    new_values[$i]="$new_value"
-                fi
-            done
-            echo "${new_values[*]}" | tr ' ' '|' >>"$temp_file"
-        else
-            echo "$line" >>"$temp_file"
-        fi
-    done <"$DB_DIR/$db_name/$table_name.data"
-
-    if $found; then
-        mv "$temp_file" "$DB_DIR/$db_name/$table_name.data"
-        echo "Record updated successfully."
-    else
-        rm "$temp_file"
-        echo "Record with primary key '$pk_value' not found."
-    fi
+    IFS=',' new_line="${new_values[*]}"
+    sed -i "${lineno}s/.*/$new_line/" "$1/$tablename"
+    echo "Row updated."
 }
 
-# SQL Parser (Basic)
-parse_sql() {
-    local db_name="$1"
-    local sql="$2"
-
-    # Enable case-insensitive matching
-    shopt -s nocasematch
-
-    if [[ "$sql" =~ ^CREATE[[:space:]]+TABLE[[:space:]]+([a-zA-Z][a-zA-Z0-9_]*)[[:space:]]*\((.*)\)[[:space:]]*(;)?$ ]]; then
-        table_name="${BASH_REMATCH[1]}"
-        columns_def="${BASH_REMATCH[2]}"
-        if [ -f "$DB_DIR/$db_name/$table_name.tbl" ]; then
-            echo "Table '$table_name' already exists."
-            shopt -u nocasematch
-            return 1
-        fi
-
-        columns=()
-        datatypes=()
-        pk=""
-        IFS=',' read -ra col_defs <<<"$columns_def"
-        for col_def in "${col_defs[@]}"; do
-            col_def=$(echo "$col_def" | tr -s ' ' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-            if [[ "$col_def" =~ PRIMARY[[:space:]]+KEY ]]; then
-                pk=$(echo "$col_def" | cut -d' ' -f1)
-                continue
-            fi
-            read -r col_name col_type <<<"$col_def"
-            if ! validate_identifier "$col_name" || ! validate_datatype "$col_type"; then
-                shopt -u nocasematch
-                return 1
-            fi
-            columns+=("$col_name")
-            datatypes+=("${col_type^^}")
-        done
-
-        if [[ -z "$pk" || ! " ${columns[*]} " =~ " $pk " ]]; then
-            echo "Valid primary key must be specified."
-            shopt -u nocasematch
-            return 1
-        fi
-
-        echo "${columns[*]}" >"$DB_DIR/$db_name/$table_name.tbl"
-        echo "${datatypes[*]}" >>"$DB_DIR/$db_name/$table_name.tbl"
-        echo "$pk" >>"$DB_DIR/$db_name/$table_name.tbl"
-        echo "Table '$table_name' created successfully."
-        shopt -u nocasematch
-        return 0
-    elif [[ "$sql" =~ ^SELECT[[:space:]]+\*[[:space:]]+FROM[[:space:]]+([a-zA-Z][a-zA-Z0-9_]*)[[:space:]]*(;)?$ ]]; then
-        table_name="${BASH_REMATCH[1]}"
-        select_from_table "$db_name" <<<"$table_name"
-        shopt -u nocasematch
-        return 0
-    else
-        echo "Unsupported SQL command."
-        shopt -u nocasematch
-        return 1
-    fi
-}
-
-# Connect to Database
-connect_to_database() {
-    read -p "Enter database name: " db_name
-    if [ ! -d "$DB_DIR/$db_name" ]; then
-        echo "Database '$db_name' does not exist."
-        return 1
-    fi
-
+# Menu for operations inside a database
+db_menu() {
+    dbpath="$DB_DIR/$1"
     while true; do
-        echo -e "\nDatabase: $db_name"
+        echo -e "\nDatabase Menu - '$1'"
         echo "1. Create Table"
         echo "2. List Tables"
         echo "3. Drop Table"
         echo "4. Insert into Table"
-        echo "5. Select From Table"
-        echo "6. Delete From Table"
+        echo "5. Select from Table"
+        echo "6. Delete from Table"
         echo "7. Update Table"
-        echo "8. Execute SQL"
-        echo "9. Back to Main Menu"
-        read -p "Select an option: " option
+        echo "8. Disconnect"
+        read -p "Choose an option: " choice
 
-        case $option in
-        1) create_table "$db_name" ;;
-        2) list_tables "$db_name" ;;
-        3) drop_table "$db_name" ;;
-        4) insert_into_table "$db_name" ;;
-        5) select_from_table "$db_name" ;;
-        6) delete_from_table "$db_name" ;;
-        7) update_table "$db_name" ;;
+        case $choice in
+        1) create_table "$dbpath" ;;
+        2) list_tables "$dbpath" ;;
+        3) drop_table "$dbpath" ;;
+        4) insert_into_table "$dbpath" ;;
+        5) select_from_table "$dbpath" ;;
+        6) delete_from_table "$dbpath" ;;
+        7) update_table "$dbpath" ;;
         8)
-            read -p "Enter SQL query: " sql_query
-            parse_sql "$db_name" "$sql_query"
+            echo "Disconnected from database."
+            break
             ;;
-        9) break ;;
         *) echo "Invalid option." ;;
         esac
     done
 }
 
-# Main Menu
-while true; do
-    echo -e "\nDBMS Main Menu"
-    echo "1. Create Database"
-    echo "2. List Databases"
-    echo "3. Connect To Database"
-    echo "4. Drop Database"
-    echo "5. Exit"
-    read -p "Select an option: " option
+# # Main menu
+# while true; do
+#     echo -e "\nMain Menu"
+#     echo "1. Create Database"
+#     echo "2. List Databases"
+#     echo "3. Connect to Database"
+#     echo "4. Drop Database"
+#     echo "5. Exit"
+#     read -p "Choose an option: " choice
 
-    case $option in
-    1) create_database ;;
-    2) list_databases ;;
-    3) connect_to_database ;;
-    4) drop_database ;;
-    5)
-        echo "Exiting..."
-        exit 0
-        ;;
-    *) echo "Invalid option." ;;
-    esac
-done
+#     case $choice in
+#     1) create_db ;;
+#     2) list_dbs ;;
+#     3) connect_db ;;
+#     4) drop_db ;;
+#     5)
+#         echo "Exiting..."
+#         break
+#         ;;
+#     *) echo "Invalid option." ;;
+#     esac
+# done
